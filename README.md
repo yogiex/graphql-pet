@@ -71,3 +71,119 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](LICENSE).
+
+
+## Notes
+Catatan proses belajar graphql dengan menggunakan nestjs(versi 7), repository ini digubuat dengan *code first*, yaitu schema graphql dibuat dengan menulis baris kode terlebih dahulu setelah itu akan digenerate oleh nest.
+
+package graphql yang diperlukan
+
+```sh
+npm i @nestjs/graphql graphql-tools graphql apollo-server-express
+```
+
+konfigurasi graphql pada app.module.ts pada bagian imports
+```typescript
+  GraphQLModule.forRoot({
+    autoSchemaFile: join(process.cwd(),'src/schema.gql'),
+    driver: ApolloDriver
+  })
+```
+
+graphql merupakan typed language yang kuat, mendefisinikan setiap tipe data yang digunakan pada graphql. Tipe data membantu mendefinisikan schema graphql.
+
+```typescript
+import { Field, Int, ObjectType } from "@nestjs/graphql";
+import { Owner } from "src/owners/entities/owner.entity";
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+
+@Entity()
+@ObjectType()
+export class Pet {
+    @PrimaryGeneratedColumn()
+    @Field(type => Int)
+    id: number;
+
+    @Column()
+    @Field()
+    name: string;
+
+    @Column({nullable:true})
+    @Field({nullable:true})
+    type?: string;
+
+    @Column()
+    @Field(type => Int)
+    ownerId: number;
+
+    @ManyToOne(() => Owner, owner => owner.pets)
+    @Field(type => Owner)
+    owner: Owner
+}
+```
+baris kode diatas merupakan cara mendefinisikan tipe serta membangun skema database pada typeorm.
+
+package integrasi dengan database bisa disesuaikan, bisa dengan typeorm, prisma dan lain lain.
+
+```sh
+npm install --save @nestjs/typeorm typeorm *(mysql2, sqlite3, postgres)
+```
+* bisa disesuaikan dengan database yang digunakan
+
+
+## resolver
+resolver merupakan koleksi dari fungsi yang akan digenerate berupa respon dari query graphql.
+Pada nestjs resolver dibentuk dari class dengan decorator @Resolver() dari package @nestjs/graphql.
+
+```typescript
+import { Resolver } from '@nestjs/graphql';
+
+@Resolver(of => Pet)
+export class PetsResolver {
+    // isi dari class pet resolver
+}
+```
+## query 
+query merupakan perintah dari graphql yang digunakan untuk membaca atau fetch data.
+
+```typescript
+import { Args, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
+
+@Resolver(of => Pet)
+export class PetsResolver {
+    constructor(private petsService: PetsService){}
+
+    @Query(returns => Pet)
+    getPet(@Args('id',{ type: () => Int }) id: number): Promise<Pet> {
+        return this.petsService.findOne(id)
+    }
+
+    @Query(returns => [Pet])
+    pets(): Promise<Pet[]> {
+        return this.petsService.findAll();
+    }
+}
+```
+tampilan pada graphql playground
+![](./img/Screenshot_20220314_194611.png)  
+
+## mutations
+mutations merupakan aksi pada graphql untuk menulis dan mengirim data.
+
+```typescript
+import { Args, Int, Mutation, Parent, Query, ResolveField, Resolver } from '@nestjs/graphql';
+
+@Resolver(of => Pet)
+export class PetsResolver {
+    constructor(private petsService: PetsService){}
+
+
+    @Mutation(returns => Pet)
+    createPet(@Args('createPetInput') createPetInput: CreatePetInput): Promise<Pet> {
+        return this.petsService.createPet(createPetInput)
+    }
+}
+```
+
+tampilan mutations pada graphql playground
+![](./img/Screenshot_20220314_194851.png)  
